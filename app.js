@@ -10,4 +10,3 @@ cron.schedule("0 0 */6 * * *",async ()=>{
 cron.schedule("0 0 */2 * * *",async ()=>{
     await worker.execute(true);    
 });
-

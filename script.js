@@ -8,8 +8,10 @@ require("firebase/firestore");
 
 firebase.initializeApp(fbconfig);
 
-const datastore = firebase.firestore().collection("datastore");
+const indexstore = firebase.firestore().collection("indexes");
+
 const database = firebase.database().ref();
+
 var articles=[];
 
 //WORKER FUNCTION--------------------------------------------
@@ -21,16 +23,14 @@ async function execute(isRegular){
     
     if(isRegular){
         for(var i=0;i<categories.length;i++){ 
-        
             var category = categories[i];  
-            await sleep(2000);
+            await sleep(1000);
             await fetchDataFromGnews(category);
-    
         }
     }else{
         await fetchDataFromGnews(stories);
     }
-    await dumpDataToFirestore(articles,articles.length);
+    await updateIndexAtFirestore(articles,articles.length);
     await dumpDataToDatabase(articles,articles.length);
     console.log(`\n[SCRIPT MAIN EXECUTION STOPPED]===>${qdg(new Date(),'current')}`);
 }
@@ -54,19 +54,20 @@ async function fetchDataFromGnews(category){
             
         var c = data.articles[i];
  
-        await pushToDataArray(category,c,i); 
+        await pushToDataArray(category,c); 
     }
 
 }
 
-async function pushToDataArray(category,data,i){
+async function pushToDataArray(category,data){
     var descKeywords = await kwg.generateKeywords(await data.description);
     var titleKeywords = await kwg.generateKeywords(await data.title);
     var sets = new Set(descKeywords.concat(titleKeywords));
     var keywords = Array.from(sets);
+    var uniqueId = data.publishedAt.split('-').join('').split(':').join('').split('Z').join(`-${generateUniqueId()}`);
 
     var jsonObject = {
-        id:generateUniqueId(),
+        id:uniqueId,
         payload:{
         title: data.title,
         description: data.description,
@@ -85,35 +86,35 @@ async function pushToDataArray(category,data,i){
     
 }
 
-async function dumpDataToFirestore(data,length){
-    const currentDatastore = await getCurrentDatastore();
-    const dstoreSize = await getDataStoreSize(currentDatastore);
+async function updateIndexAtFirestore(data,length){
+    const currentindexstore = await getCurrentindexstore();
+    const dstoreSize = await getindexstoreSize(currentindexstore);
     const available = 900000-dstoreSize;
     const dataSize = sizeOf(data);
 
     if(available<=1000){
-        console.log(`NO ENOUGH SPACE AVAILABLE. CREATING NEW STORE`);
-        createNewDatastore();
-        dumpDataToFirestore(articles,articles.length);
+        console.log(`NO ENOUGH SPACE AVAILABLE. CREATING NEW STORE...`);
+        await createNewindexstore();
+        updateIndexAtFirestore(articles,articles.length);
     }else{
         if(dataSize<=available){
             for(var i=0;i<length;i++){
                 var key = data[i].id;
-                await sleep(1200);
-                await datastore.doc(currentDatastore).update({
-                    [`articles.${key}`]:data[i].payload,
+                await indexstore.doc(currentindexstore).update({
+                    [`articles.${key}`]:data[i].payload.keywords,
                 }).then(()=>{
-                    console.log(`SUCCESS [DOC NO.]=>${i} [DOC ID.]=>${data[i].id}`);
+                    console.log(`SUCCESS [INDEX NO.]=>${i} [INDEX ID.]=>${data[i].id}`);
                 }).catch((err)=>{
-                    console.log(`FAILURE [DOC NO.]=>${i} [ERROR.]=>${err}`);
+                    console.log(`FAILURE [INDEX NO.]=>${i} [ERROR.]=>${err}`);
                 });
             }
+
             if(articles.length>length){
                 articles = articles.slice(length,articles.length);
-                dumpDataToFirestore(articles,articles.length);
+                updateIndexAtFirestore(articles,articles.length);
             }
         }else{
-            dumpDataToFirestore(articles,(articles.length)/2);
+            updateIndexAtFirestore(articles,(articles.length)/2);
         }
     }
     
@@ -121,7 +122,7 @@ async function dumpDataToFirestore(data,length){
 }
 
 async function dumpDataToDatabase(data,length){
-    
+
     for(var i=0;i<length;i++){
         var key = data[i].id;
         await database.child("articles").child(key).set({
@@ -134,53 +135,51 @@ async function dumpDataToDatabase(data,length){
             source: data[i].payload.source,
             source_url: data[i].payload.source_url,
             category: data[i].payload.category,
-            keywords:data[i].payload.keywords
         }).then(()=>{
-            console.log(`SUCCESS-->${i}`);
+            console.log(`SUCCESS [ARTICLE NO.]=>${i} [ARTICLE ID.]=>${data[i].id}`);
         }).catch((err)=>{
-            console.log(`FAILED-->${i}: ${err}`);
+            console.log(`FAILURE [ARTICLE NO.]=>${i} [ERROR.]=>${err}`);
         });
        
-        }
+    }
 }
-//HELPER FUNCTIONS--------------------------------------------
 
-async function getCurrentDatastore(){
-    const doc = await datastore.doc("dspointer").get();
+//HELPER FUNCTIONS--------------------------------------------
+async function getCurrentindexstore(){
+    const doc = await indexstore.doc("indexpointer").get();
     return doc.data().current;
 }
 
-async function getDataStoreSize(current){
-    const doc = await datastore.doc(current).get();
+async function getindexstoreSize(current){
+    const doc = await indexstore.doc(current).get();
     return sizeOf(doc.data());
 }
 
-async function createNewDatastore(){
-    datastore.add({
+async function createNewindexstore(){
+    await indexstore.add({
         articles:{},
-    }).then((doc)=>{
-        console.log(`NEW DATA STORE CREATED SUCCESSFULLY ${doc.id}`);
-        datastore.doc("dspointer").update({
+    })
+    .then((doc)=>{
+        console.log(`NEW INDEX STORE CREATED SUCCESSFULLY ${doc.id}`);
+        indexstore.doc("indexpointer").update({
             current:doc.id,
             dstores:firebase.firestore.FieldValue.arrayUnion(doc.id),
         }).then(()=>{
-            console.log(`NEW DATA STORE UPDATED IN DSPOINTER SUCCESSFULLY`);
+            console.log(`NEW INDEX STORE UPDATED IN INDEXPOINTER SUCCESSFULLY`);
         }).catch((err)=>{
-            console.log(`NEW DATA STORE UPDATED IN DSPOINTER FAILED ${err}`);
+            console.log(`NEW INDEX STORE UPDATED IN INDEXPOINTER FAILED ${err}`);
         });
     }).catch((err)=>{
-        console.log(`NEW DATA STORE CREATED FAILED ${err}`);
-    })
+        console.log(`NEW INDEX STORE CREATED FAILED ${err}`);
+    });
 }
 
 function generateUniqueId(){
-    const chars =
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    const chars ='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let autoId = '';
-    for (let i = 0; i < 20; i++) {
+    for (let i = 0; i < 8; i++) {
       autoId += chars.charAt(Math.floor(Math.random() * chars.length));
     }
-  
     return autoId;
 }
 
@@ -192,3 +191,5 @@ function sleep(ms) {
 module.exports={
     execute:execute,
 }
+
+
