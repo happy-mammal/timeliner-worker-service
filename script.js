@@ -32,6 +32,7 @@ async function execute(isRegular){
     }
     await updateIndexAtFirestore(articles,articles.length);
     await dumpDataToDatabase(articles,articles.length);
+    articles=[];
     console.log(`\n[SCRIPT MAIN EXECUTION STOPPED]===>${qdg(new Date(),'current')}`);
 }
 
@@ -64,7 +65,7 @@ async function pushToDataArray(category,data){
     var titleKeywords = await kwg.generateKeywords(await data.title);
     var sets = new Set(descKeywords.concat(titleKeywords));
     var keywords = Array.from(sets);
-    var uniqueId = data.publishedAt.split('-').join('').split(':').join('').split('Z').join(`-${generateUniqueId()}`);
+    var uniqueId = await data.publishedAt.split('-').join('').split(':').join('').split('Z').join(`-${generateUniqueId()}`);
 
     var jsonObject = {
         id:uniqueId,
@@ -99,7 +100,8 @@ async function updateIndexAtFirestore(data,length){
     }else{
         if(dataSize<=available){
             for(var i=0;i<length;i++){
-                var key = data[i].id;
+                var key =data[i].id;
+                await sleep(500);
                 await indexstore.doc(currentindexstore).update({
                     [`articles.${key}`]:data[i].payload.keywords,
                 }).then(()=>{
@@ -124,8 +126,10 @@ async function updateIndexAtFirestore(data,length){
 async function dumpDataToDatabase(data,length){
 
     for(var i=0;i<length;i++){
-        var key = data[i].id;
+        var key= data[i].id;
+        await sleep(500);
         await database.child("articles").child(key).set({
+            id: data[i].id,
             title: data[i].payload.title,
             description: data[i].payload.description,
             content: data[i].payload.content,
@@ -135,6 +139,7 @@ async function dumpDataToDatabase(data,length){
             source: data[i].payload.source,
             source_url: data[i].payload.source_url,
             category: data[i].payload.category,
+            keywords: data[i].payload.keywords
         }).then(()=>{
             console.log(`SUCCESS [ARTICLE NO.]=>${i} [ARTICLE ID.]=>${data[i].id}`);
         }).catch((err)=>{
