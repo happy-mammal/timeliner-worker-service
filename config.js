@@ -11,8 +11,8 @@ const firebaseConfig = {
     appId: process.env.APP_ID
 };
 
-const categories = [process.env.C0,process.env.C1,process.env.C2,process.env.C3,process.env.C4,process.env.C5,process.env.C6];
-const stories = process.env.C7;
+const categories = [process.env.C0,process.env.C1,process.env.C2,process.env.C3,process.env.C4,process.env.C5,process.env.C6,process.env.C7];
+const stories = process.env.C8;
 
 
 const domain = process.env.DOMAIN;
@@ -26,6 +26,5 @@ module.exports ={
     domain:domain,
     endpoint:endpoint,
     apik:apik
-
 }
 
