@@ -66,7 +66,7 @@ async function pushToDataArray(category,data){
     var sets = new Set(descKeywords.concat(titleKeywords));
     var keywords = Array.from(sets);
     var uniqueId = await data.publishedAt.split('-').join('').split(':').join('').split('Z').join(`-${generateUniqueId()}`);
-
+    var capitalizedCatetory = category.charAt(0).toUpperCase() + category.slice(1);
     var jsonObject = {
         id:uniqueId,
         payload:{
@@ -78,7 +78,7 @@ async function pushToDataArray(category,data){
         publishedAt: data.publishedAt,
         source: data.source.name,
         source_url: data.source.url,
-        category: category,
+        category: capitalizedCatetory,
         keywords:keywords,
         }
     }
