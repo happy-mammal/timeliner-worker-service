@@ -67,6 +67,7 @@ async function pushToDataArray(category,data){
     var keywords = Array.from(sets);
     var uniqueId = await data.publishedAt.split('-').join('').split(':').join('').split('Z').join(`-${generateUniqueId()}`);
     var capitalizedCatetory = category.charAt(0).toUpperCase() + category.slice(1);
+    
     var jsonObject = {
         id:uniqueId,
         payload:{
@@ -82,8 +83,21 @@ async function pushToDataArray(category,data){
         keywords:keywords,
         }
     }
+
+    let duplicates=0;
     
-    articles.push(jsonObject);
+    if(articles.length===0){
+        articles.push(jsonObject);
+    }
+    for(let i=0;i<articles.length;i++){
+        if(articles[i].payload.title===data.title){
+            duplicates++;
+        }
+    }
+    if(duplicates===0){
+        articles.push(jsonObject);
+    }
+    
     
 }
 
