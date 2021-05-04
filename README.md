@@ -44,6 +44,7 @@ You can use this if you want to:
   ```
  
 ## Techs Used
+<html>
  <div id="banner" style="overflow: hidden; ">
   <div class="image-div" >
      <img src="https://img.icons8.com/color/452/firebase.png" width="100" height="100"/>
@@ -62,6 +63,7 @@ You can use this if you want to:
   </div>
   <div style="clear:left;"></div>
 </div>
+</html>
 
 ## License
  <img src="https://upload.wikimedia.org/wikipedia/commons/thumb/0/0c/MIT_logo.svg/1200px-MIT_logo.svg.png" width="200" height="100"/>
