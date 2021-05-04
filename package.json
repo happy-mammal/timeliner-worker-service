@@ -19,7 +19,7 @@
   "homepage": "https://github.com/happy-mammal/timeliner-worker-service#readme",
   "dependencies": {
     "dotenv": "^8.2.0",
-    "firebase": "^8.3.2",
+    "firebase-admin": "^9.6.0",
     "firestore-size": "^2.0.6",
     "node-cron": "^3.0.0",
     "node-fetch": "^2.6.1"

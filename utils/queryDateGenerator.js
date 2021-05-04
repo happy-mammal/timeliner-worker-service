@@ -36,7 +36,7 @@ return undefined; //Returning Undefined Type
 }
 
 }
-
+//Exporting Script
 module.exports ={
-    qdg:qdg
+    qdg:qdg //-->Exporting Query Date Generator 
 }

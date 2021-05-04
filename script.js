@@ -1,26 +1,26 @@
-const firebase = require("firebase");
-const fetch = require('node-fetch');
-const sizeOf = require("firestore-size");
-const {fbconfig,categories, stories ,domain, endpoint,apik} = require('./config');
-const {qdg} = require('./queryDateGenerator');
-const kwg = require('./keywordsGenerator'); 
-require("firebase/firestore");
+const fetch = require('node-fetch'); //--> Using node-fetch module for making API requests 
+const sizeOf = require("firestore-size"); //--> Using firestore-size module to check document size & data size 
+const admin = require("firebase-admin");//--> Firebase admin sdk for working with firebase as admin app with serivce-account
+const {categories, cat ,domain, endpoint,apik} = require('./config/config'); //--> Using node-fetch module for making API requests 
+const {qdg} = require('./utils/queryDateGenerator'); //--> Using utility to generate required dates in ISO ISO 8601 format and 
+const kwg = require('./utils/keywordsGenerator'); //--> Using utility to generate keywords from title and description 
 
-firebase.initializeApp(fbconfig);
+//Creating firestore instance and collection
+const indexstore = admin.firestore().collection("indexes");
 
-const indexstore = firebase.firestore().collection("indexes");
+//Creating realtime database instance and reference
+const database = admin.database().ref();
 
-const database = firebase.database().ref();
-
+//Initializing empty array of articles for storage
 var articles=[];
 
-//WORKER FUNCTION--------------------------------------------
+//Execute function(This is the main worker function which gets executed).
 async function execute(isRegular){
 
     console.log(`\n[ LOG FOR EXECUTE GENERATED ON ${qdg(new Date(),'current')} ]`);
 
     console.log(`\n[SCRIPT MAIN EXECUTION STARTED]===>${qdg(new Date(),'current')}`);
-    
+
     if(isRegular){
         for(var i=0;i<categories.length;i++){ 
             var category = categories[i];  
@@ -28,15 +28,14 @@ async function execute(isRegular){
             await fetchDataFromGnews(category);
         }
     }else{
-        await fetchDataFromGnews(stories);
+        await fetchDataFromGnews(cat);
     }
     await updateIndexAtFirestore(articles,articles.length);
     await dumpDataToDatabase(articles,articles.length);
     articles=[];
     console.log(`\n[SCRIPT MAIN EXECUTION STOPPED]===>${qdg(new Date(),'current')}`);
 }
-
-//MAIN FUNCTIONS---------------------------------------------
+//Fetch Data From Gnews(This function makes request to the api endpoint for the specified category).
 async function fetchDataFromGnews(category){
 
     let api = `${domain}${endpoint}?token=${apik}&topic=${category}&lang=en&max=10&from=${qdg(new Date(),'from')}&to=${qdg(new Date(),'to')}`;
@@ -59,7 +58,7 @@ async function fetchDataFromGnews(category){
     }
 
 }
-
+//Push To Data Array(Pushes the data in modified json format with some added data).
 async function pushToDataArray(category,data){
     var descKeywords = await kwg.generateKeywords(await data.description);
     var titleKeywords = await kwg.generateKeywords(await data.title);
@@ -100,7 +99,7 @@ async function pushToDataArray(category,data){
     
     
 }
-
+//Update Index At Firestore(Creates the index for each article in firestore as well as maintains and manages the storage and creation).
 async function updateIndexAtFirestore(data,length){
     const currentindexstore = await getCurrentindexstore();
     const dstoreSize = await getindexstoreSize(currentindexstore);
@@ -136,7 +135,7 @@ async function updateIndexAtFirestore(data,length){
     
 
 }
-
+//Dump Data To Database(Dumps the filtered json data of indexed articles in realtime database for storage).
 async function dumpDataToDatabase(data,length){
 
     for(var i=0;i<length;i++){
@@ -163,17 +162,17 @@ async function dumpDataToDatabase(data,length){
     }
 }
 
-//HELPER FUNCTIONS--------------------------------------------
+//Get Current Index Store(A Helper function which returns the currently pointed index store which has free space).
 async function getCurrentindexstore(){
     const doc = await indexstore.doc("indexpointer").get();
     return doc.data().current;
 }
-
+//Get Index Store Size(A Helper function which returns the current size of the specified document).
 async function getindexstoreSize(current){
     const doc = await indexstore.doc(current).get();
     return sizeOf(doc.data());
 }
-
+//Create New Index Store(A Helper function which creates new Index store i.e document and updates the current pointer and datastores list).
 async function createNewindexstore(){
     await indexstore.add({
         articles:{},
@@ -182,7 +181,7 @@ async function createNewindexstore(){
         console.log(`NEW INDEX STORE CREATED SUCCESSFULLY ${doc.id}`);
         indexstore.doc("indexpointer").update({
             current:doc.id,
-            dstores:firebase.firestore.FieldValue.arrayUnion(doc.id),
+            stores:firebase.firestore.FieldValue.arrayUnion(doc.id),
         }).then(()=>{
             console.log(`NEW INDEX STORE UPDATED IN INDEXPOINTER SUCCESSFULLY`);
         }).catch((err)=>{
@@ -192,7 +191,7 @@ async function createNewindexstore(){
         console.log(`NEW INDEX STORE CREATED FAILED ${err}`);
     });
 }
-
+//Generate Unique Id(A Helper function which returns unique id).
 function generateUniqueId(){
     const chars ='ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
     let autoId = '';
@@ -201,14 +200,14 @@ function generateUniqueId(){
     }
     return autoId;
 }
-
+//Sleep (A Helper function for creating necessary delays between operations).
 function sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-//MODULE EXPORTS----------
+//Exporting Script
 module.exports={
-    execute:execute,
+    execute:execute, //-->Exporting main execute function.
 }
 
 
